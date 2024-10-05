@@ -1,0 +1,16 @@
+apprise==1.9.0
+load-dotenv==0.1.0
+PyYAML==6.0.2
+certifi==2024.8.30
+charset-normalizer==3.3.2
+click==8.1.7
+colorama==0.4.6
+idna==3.10
+markdown==3.7
+oauthlib==3.2.2
+python-dotenv==1.0.1
+requests==2.32.3
+urllib3==2.2.3
+Jinja2==3.1.4
+MarkupSafe==2.1.5
+websocket-client==1.8.0
