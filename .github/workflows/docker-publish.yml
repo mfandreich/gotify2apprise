@@ -5,7 +5,7 @@ on:
     tags:
       - "*"
 
-obs:
+jobs:
   build-and-push-image:
     runs-on: ubuntu-latest
     permissions:
