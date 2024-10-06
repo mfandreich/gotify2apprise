@@ -39,11 +39,11 @@ def isCorrectPriority(priority, receiver):
     if "priorities" in receiver:
         prioritiesList = []
 
-        for priority in receiver["priorities"]:
-            if isinstance(priority, int):
+        for priorityValue in receiver["priorities"]:
+            if isinstance(priorityValue, int):
                 prioritiesList.append(priority)
-            if isinstance(priority, str):
-                match priority:
+            if isinstance(priorityValue, str):
+                match priorityValue:
                     case "info":
                         prioritiesList += [0, 1, 2, 3]
                     case "warn":
