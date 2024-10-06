@@ -19,14 +19,26 @@ applications: #root of config, mus be array of
     receivers:
       - urls:
         - tgram://MY_BOT_TOKEN
-        minPriority: 4 #send message only for "warning@ and greater
+        minPriority: 4 #send message only for "warning" and greater
   - tokens:
     - GOTIFY_APP_TOKEN1 # receivers in this block process only
     - GOTIFY_APP_TOKEN2 # messages fro this two apps
     receivers:
       - urls:
         - discord://WEBHOOK_ID/WEBHOOK_TOKEN
-        minPriority: 8
+        minPriority: info
+      - urls:
+        - slack://TokenA/TokenB/TokenC/
+        priorities: #also you can determine specific list of priorities for your receiver
+        - info
+        - 9
+        - 10
 ```
 
-You can use any receiver for any application token in any combination. You can also send messages to Gotify, but be careful not to go sending in an infinite cycle.
+You can use any receiver for any application token in any combination. You can also send messages to Gotify via gotify://hostname/token url but be careful not to go sending in an infinite cycle.
+
+For priorities settings you can use key words:
+
+- info - if used in minPriority its equal 0. For priorities its translate to values 0, 1, 2 and 3
+- warn - if used in minPriority its equal 4. For priorities its translate to values 4, 5, 6 and 7
+- crit - if used in minPriority its equal 8. For priorities its translate to values 8, 9 and 10

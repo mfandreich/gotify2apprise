@@ -32,6 +32,46 @@ def getGotifyApps():
     except Exception as e:
         print(e)
 
+def isCorrectPriority(priority, receiver):
+    if "priorities" in receiver:
+        prioritiesList = []
+
+        for priority in receiver["priorities"]:
+            if isinstance(priority, int):
+                prioritiesList.append(priority)
+            if isinstance(priority, str):
+                match priority:
+                    case "info":
+                        prioritiesList += [0, 1, 2, 3]
+                    case "warn":
+                        prioritiesList += [4, 5, 6, 7]
+                    case "crit":
+                        prioritiesList += [8, 9, 10]
+
+        if not priority in prioritiesList:
+            return False
+
+    if "minPriority" in receiver:
+        minPriority = receiver["minPriority"]
+
+        minPriorityValue = 0
+
+        if isinstance(minPriority, int):
+            minPriorityValue = minPriority
+        if isinstance(minPriority, str):
+            match minPriority:
+                case "info":
+                    minPriorityValue = 0
+                case "warn":
+                    minPriorityValue = 4
+                case "crit":
+                    minPriorityValue = 8
+
+        if minPriority > priority:
+            return False
+
+    return True
+
 def getUrls(appId, priority):
 
     apps = getGotifyApps()
@@ -55,14 +95,7 @@ def getUrls(appId, priority):
             receivers = confApp["receivers"]
             for receiver in receivers:
                 try:
-                    minPriority = 0
-                    if "minPriority" in receiver:
-                        minPriority = receiver["minPriority"]
-
-                    if minPriority > priority:
-                        continue
-
-                    if "urls" in receiver:
+                    if isCorrectPriority(priority, receiver) and "urls" in receiver:
                         result += receiver["urls"]
                 except Exception as e:
                     print(e)
