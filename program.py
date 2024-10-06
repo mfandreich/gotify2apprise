@@ -70,7 +70,7 @@ def isCorrectPriority(priority, receiver):
                 case "crit":
                     minPriorityValue = 8
 
-        if minPriority > priority:
+        if minPriorityValue > priority:
             return False
 
     return True
