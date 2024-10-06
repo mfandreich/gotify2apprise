@@ -47,6 +47,31 @@ For priorities settings you can use key words:
 - warn - if used in minPriority its equal 4. For priorities its translate to values 4, 5, 6 and 7
 - crit - if used in minPriority its equal 8. For priorities its translate to values 8, 9 and 10
 
+## Config fields
+
+|Field|Is required|Description|
+|-|-|-|
+|applications|true|Root field. Array of all processed applications|
+|applications[].tokens|true|List of Gotify app tokens which included in this processed application. If contain `all` value, this record process all Gotify apps|
+|applications[].receivers|true|List of receivers which process incoming messages for target Gotify apps|
+|applications[].receivers[].urls|true|List of Apprise urls. More info about supported urls can be found [here](https://github.com/caronc/apprise)|
+|applications[].receivers[].titleTemplate|false|Template string for Title. Default value: `$title`|
+|applications[].receivers[].messageTemplate|false|Template string for Title. Default value: `$message`|
+|applications[].receivers[].minPriority|false|Minimal message priority witch must be process by this receiver. Valid values is number or `info`, `warn` and `crit` strings|
+|applications[].receivers[].priorities|false|List of message priorities witch must be process by this receiver. Valid values is number or `info`, `warn` and `crit` strings|
+
+## Templates
+
+The message title and message body are all created with a templates. You can define your own default templates with ENV variables: `TITLE_TEMPLATE` and `MESSAGE_TEMPLATE`. If this variables not presented `$title` and `$message` strings will be used.
+
+Template variables:
+
+- `$title` - title of message
+- `$message` - body of message
+- `$appid` - id of Gotify app which send this message
+- `$priority` - priority of message (number)
+- `$priorityStr` - priority string mapped to values `info`, `warn` and `crit`
+
 ## Installation with Docker Compose
 
 ```

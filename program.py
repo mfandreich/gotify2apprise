@@ -13,6 +13,9 @@ token = os.environ["GOTIFY_TOKEN"]
 
 configPath = os.environ["CONF_FILE"] if "CONF_FILE" in os.environ else '/etc/gotify2apprise/config.yaml'
 
+defaultTitleTemplate = os.environ["TITLE_TEMPLATE"] if "TITLE_TEMPLATE" in os.environ else "$title"
+defaultMessageTemplate = os.environ["MESSAGE_TEMPLATE"] if "MESSAGE_TEMPLATE" in os.environ else "$message"
+
 with open(configPath, 'r') as f:
   configData = yaml.safe_load(f)
 
@@ -72,7 +75,7 @@ def isCorrectPriority(priority, receiver):
 
     return True
 
-def getUrls(appId, priority):
+def getReceivers(appId, priority):
 
     apps = getGotifyApps()
 
@@ -84,7 +87,7 @@ def getUrls(appId, priority):
     if not "applications" in configData:
         return []
 
-    result =[]
+    result = []
 
     for confApp in configData["applications"]:
         if not "tokens" in confApp or not "receivers" in confApp:
@@ -96,11 +99,67 @@ def getUrls(appId, priority):
             for receiver in receivers:
                 try:
                     if isCorrectPriority(priority, receiver) and "urls" in receiver:
-                        result += receiver["urls"]
+                        result.append(receiver)
                 except Exception as e:
                     print(e)
 
     return result
+
+def getPriorityString(priority):
+    if priority < 4:
+        return "info"
+    if priority < 8:
+        return "warn"
+    return "crit"
+
+
+def getTemplateText(msgData, receiver, template):
+    result = template
+
+    priority = msgData["priority"]
+    appId = msgData["appid"]
+    title = msgData['title']
+    message = msgData['message']
+    priorityStr = getPriorityString(priority)
+
+    result = result.replace("$priorityStr", priorityStr)
+    result = result.replace("$priority", str(priority))
+    result = result.replace("$appid", str(appId))
+    result = result.replace("$title", title)
+    result = result.replace("$message", message)
+
+    return result
+
+def getTitle(msgData, receiver):
+    template = defaultTitleTemplate
+    if "titleTemplate" in receiver:
+        try:
+            template = receiver["titleTemplate"]
+        except Exception as e:
+            print(e)
+
+    return getTemplateText(msgData, receiver, template)
+
+def getMessage(msgData, receiver):
+    template = defaultMessageTemplate
+    if "messageTemplate" in receiver:
+        try:
+            template = receiver["messageTemplate"]
+        except Exception as e:
+            print(e)
+
+    return getTemplateText(msgData, receiver, template)
+
+def getNotifyType(priority):
+    type = apprise.NotifyType.INFO
+
+    if priority >= 4 and priority < 8:
+        type = apprise.NotifyType.WARNING
+    elif priority >= 8:
+        type = apprise.NotifyType.FAILURE
+
+    return type
+
 
 def onNotify(ws, msg):
     print("msg: ", msg)
@@ -110,26 +169,24 @@ def onNotify(ws, msg):
         appId = msgData["appid"]
         priority = msgData["priority"]
 
-        urls = getUrls(appId, priority)
+        receivers = getReceivers(appId, priority)
 
-        if len(urls) <= 0:
-            print("No receiver urls found for this message, skip")
+        if len(receivers) <= 0:
+            print("No receivers found for this message, skip")
             return
 
-        appriseInstance = apprise.Apprise()
+        for receiver in receivers:
+            appriseInstance = apprise.Apprise()
 
-        for url in urls:
-            appriseInstance.add(url)
+            for url in receiver["urls"]:
+                try:
+                    appriseInstance.add(url)
 
-        type = apprise.NotifyType.INFO
-
-        if priority >= 4 and priority < 8:
-            type = apprise.NotifyType.WARNING
-        elif priority >= 8:
-            type = apprise.NotifyType.FAILURE
-
-
-        appriseInstance.notify(title=msgData['title'], body=msgData['message'], notify_type=type)
+                    appriseInstance.notify(title=getTitle(msgData, receiver),
+                                           body=getMessage(msgData, receiver),
+                                           notify_type=getNotifyType(priority))
+                except Exception as e:
+                    print(e)
 
     except Exception as e:
         print(e)
@@ -144,13 +201,6 @@ def onOpen(ws):
     print("Gotify websocket connected")
 
 applications = getGotifyApps()
-
-getUrls(3, 2)
-getUrls(3, 4)
-getUrls(2, 10)
-getUrls(2, 2)
-getUrls(3, 10)
-getUrls(3, 0)
 
 if __name__ == "__main__":
     print("Gotify To Apprise start...")
