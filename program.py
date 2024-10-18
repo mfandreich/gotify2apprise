@@ -176,12 +176,10 @@ def onNotify(ws, msg):
             return
 
         for receiver in receivers:
-            appriseInstance = apprise.Apprise()
-
             for url in receiver["urls"]:
                 try:
+                    appriseInstance = apprise.Apprise()
                     appriseInstance.add(url)
-
                     appriseInstance.notify(title=getTitle(msgData, receiver),
                                            body=getMessage(msgData, receiver),
                                            notify_type=getNotifyType(priority))
