@@ -19,8 +19,7 @@ applications: #root of config, mus be array of
     receivers: # settings for receivers
       - urls:
         - mailto://myemail:mypass@gmail.com
-        - pover://USER_KEY@TOKEN
-    receivers:
+        - pover://USER_KEY@TOKEN    
       - urls:
         - tgram://MY_BOT_TOKEN
         minPriority: 4 #send message only for "warning" and greater
