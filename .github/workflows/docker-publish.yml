@@ -29,8 +29,9 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_REPONAME }}
-          tags: latest
-          labels: latest
+          tags: |
+            type=ref,event=tag
+            type=raw,value=latest
 
       - name: Build and push Docker image
         id: push
