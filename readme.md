@@ -1,6 +1,12 @@
 # gotify2apprise
 
+[![Docker](https://img.shields.io/docker/v/mfandreich/gotify2apprise?logo=docker&label=Docker)](https://hub.docker.com/r/mfandreich/gotify2apprise)
+
+English | [Русский](readme.ru.md)
+
 Homelab notification bridge: **listeners** (Gotify, optional SMTP) → YAML **routes** → **receivers** (Apprise), with SQLite history, retries, and a small web UI.
+
+Hobby project, built together with [Cursor](https://cursor.com).
 
 ```
 Gotify WS / SMTP
@@ -122,9 +128,11 @@ Or set `AUTO_MIGRATE_V1=true`: backup `config.yaml.bak.v1`, write v2, continue b
 
 ## Docker Compose
 
-Copy [config.example.yaml](config.example.yaml) to `config.yaml`, then:
+Image: [`mfandreich/gotify2apprise`](https://hub.docker.com/r/mfandreich/gotify2apprise). Copy [config.example.yaml](config.example.yaml) to `config.yaml`, then:
 
 ```bash
+docker compose up -d
+# or build locally:
 docker compose up -d --build
 ```
 

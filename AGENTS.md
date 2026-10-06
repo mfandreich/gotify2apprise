@@ -20,6 +20,7 @@ Python package `gotify2apprise/`. Keep new listener/receiver types behind the ex
 | `gotify2apprise/web/` | NiceGUI pages |
 | `gotify2apprise/legacy/migrate_v1.py` | v1 → v2 converter |
 | `config.example.yaml` | Sample v2 config |
+| `readme.md` / `readme.ru.md` | English / Russian docs |
 | `program.py` | Shim → `main()` |
 
 ## Runtime flow
@@ -44,7 +45,7 @@ Python package `gotify2apprise/`. Keep new listener/receiver types behind the ex
 1. Pydantic options model + `type` literal on `ListenerConfig` / `ReceiverConfig`.
 2. Class with `start`/`stop` or `send`.
 3. Register in `listeners/factory.py` or `receivers/factory.py`.
-4. Document YAML in `readme.md` and `config.example.yaml`.
+4. Document YAML in `readme.md`, `readme.ru.md`, and `config.example.yaml`.
 5. SMTP is internal-only; do not add open-relay behaviour.
 
 ## Do not
