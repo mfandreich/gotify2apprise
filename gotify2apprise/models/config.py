@@ -1,0 +1,234 @@
+from __future__ import annotations
+
+from typing import Any, Literal
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+PriorityKeyword = Literal["info", "warn", "crit"]
+BackoffKind = Literal["fixed", "exponential"]
+
+INFO_PRIORITIES = (0, 1, 2, 3)
+WARN_PRIORITIES = (4, 5, 6, 7)
+CRIT_PRIORITIES = (8, 9, 10)
+
+KEYWORD_MIN: dict[str, int] = {"info": 0, "warn": 4, "crit": 8}
+KEYWORD_RANGE: dict[str, tuple[int, ...]] = {
+    "info": INFO_PRIORITIES,
+    "warn": WARN_PRIORITIES,
+    "crit": CRIT_PRIORITIES,
+}
+
+
+def priority_bucket(priority: int) -> str:
+    if priority < 4:
+        return "info"
+    if priority < 8:
+        return "warn"
+    return "crit"
+
+
+def min_priority_value(value: int | str) -> int:
+    if isinstance(value, int):
+        return value
+    key = str(value).lower()
+    if key not in KEYWORD_MIN:
+        raise ValueError(f"unknown priority keyword: {value}")
+    return KEYWORD_MIN[key]
+
+
+def expand_priority_entry(value: int | str) -> set[int]:
+    if isinstance(value, int):
+        return {value}
+    key = str(value).lower()
+    if key not in KEYWORD_RANGE:
+        raise ValueError(f"unknown priority keyword: {value}")
+    return set(KEYWORD_RANGE[key])
+
+
+class GotifyOptions(BaseModel):
+    host: str
+    client_token: str
+    ssl: bool = False
+    app_tokens: list[str] = Field(default_factory=lambda: ["all"])
+
+    @field_validator("host")
+    @classmethod
+    def host_without_scheme(cls, value: str) -> str:
+        stripped = value.strip()
+        if stripped.lower().startswith(("http://", "https://", "ws://", "wss://")):
+            raise ValueError("host must not include a URL scheme")
+        if not stripped:
+            raise ValueError("host is required")
+        return stripped
+
+
+class SmtpOptions(BaseModel):
+    host: str = "0.0.0.0"
+    port: int = 2525
+    hostname: str | None = None
+    default_priority: int = 5
+
+
+class AppriseOptions(BaseModel):
+    urls: list[str]
+
+    @field_validator("urls")
+    @classmethod
+    def urls_not_empty(cls, value: list[str]) -> list[str]:
+        if not value:
+            raise ValueError("at least one Apprise URL is required")
+        return value
+
+
+class ListenerConfig(BaseModel):
+    id: str
+    type: Literal["gotify", "smtp"]
+    enabled: bool = True
+    tags: list[str] = Field(default_factory=list)
+    options: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def validate_options(self) -> ListenerConfig:
+        if self.type == "gotify":
+            GotifyOptions.model_validate(self.options)
+        elif self.type == "smtp":
+            SmtpOptions.model_validate(self.options)
+        return self
+
+    def gotify(self) -> GotifyOptions:
+        return GotifyOptions.model_validate(self.options)
+
+    def smtp(self) -> SmtpOptions:
+        return SmtpOptions.model_validate(self.options)
+
+
+class ReceiverConfig(BaseModel):
+    id: str
+    type: Literal["apprise"]
+    enabled: bool = True
+    tags: list[str] = Field(default_factory=list)
+    options: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def validate_options(self) -> ReceiverConfig:
+        if self.type == "apprise":
+            AppriseOptions.model_validate(self.options)
+        return self
+
+    def apprise(self) -> AppriseOptions:
+        return AppriseOptions.model_validate(self.options)
+
+
+class RouteFrom(BaseModel):
+    listeners: list[str] = Field(default_factory=list)
+    listener_tags: list[str] = Field(default_factory=list)
+
+    def is_empty(self) -> bool:
+        return not self.listeners and not self.listener_tags
+
+
+class RouteTo(BaseModel):
+    receivers: list[str] = Field(default_factory=list)
+    receiver_tags: list[str] = Field(default_factory=list)
+
+    def is_empty(self) -> bool:
+        return not self.receivers and not self.receiver_tags
+
+
+class RouteFilter(BaseModel):
+    min_priority: int | str | None = None
+    priorities: list[int | str] | None = None
+
+
+class RouteTemplates(BaseModel):
+    title: str | None = None
+    body: str | None = None
+
+
+class DeliveryPolicy(BaseModel):
+    max_attempts: int = 5
+    initial_delay_sec: int = 30
+    backoff: BackoffKind = "exponential"
+    max_delay_sec: int = 3600
+
+    @field_validator("max_attempts")
+    @classmethod
+    def attempts_positive(cls, value: int) -> int:
+        if value < 1:
+            raise ValueError("max_attempts must be >= 1")
+        return value
+
+
+class RouteConfig(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    id: str
+    enabled: bool = True
+    from_: RouteFrom = Field(alias="from")
+    to: RouteTo
+    filter: RouteFilter | None = None
+    templates: RouteTemplates | None = None
+    delivery: DeliveryPolicy | None = None
+
+    @model_validator(mode="after")
+    def from_to_required(self) -> RouteConfig:
+        if self.from_.is_empty():
+            raise ValueError(
+                f"route {self.id}: from needs listeners or listener_tags"
+            )
+        if self.to.is_empty():
+            raise ValueError(
+                f"route {self.id}: to needs receivers or receiver_tags"
+            )
+        return self
+
+
+class DefaultsConfig(BaseModel):
+    title_template: str = "$title"
+    message_template: str = "$message"
+    delivery: DeliveryPolicy = Field(default_factory=DeliveryPolicy)
+
+
+class AppConfig(BaseModel):
+    version: Literal[2] = 2
+    listeners: list[ListenerConfig] = Field(default_factory=list)
+    receivers: list[ReceiverConfig] = Field(default_factory=list)
+    routes: list[RouteConfig] = Field(default_factory=list)
+    defaults: DefaultsConfig = Field(default_factory=DefaultsConfig)
+
+    @model_validator(mode="after")
+    def unique_ids(self) -> AppConfig:
+        for label, items in (
+            ("listener", self.listeners),
+            ("receiver", self.receivers),
+            ("route", self.routes),
+        ):
+            ids = [item.id for item in items]
+            dupes = {i for i in ids if ids.count(i) > 1}
+            if dupes:
+                raise ValueError(f"duplicate {label} id(s): {sorted(dupes)}")
+        return self
+
+    def listener_by_id(self, listener_id: str) -> ListenerConfig | None:
+        for item in self.listeners:
+            if item.id == listener_id:
+                return item
+        return None
+
+    def receiver_by_id(self, receiver_id: str) -> ReceiverConfig | None:
+        for item in self.receivers:
+            if item.id == receiver_id:
+                return item
+        return None
+
+    def route_by_id(self, route_id: str) -> RouteConfig | None:
+        for item in self.routes:
+            if item.id == route_id:
+                return item
+        return None
+
+    def effective_delivery(self, route: RouteConfig) -> DeliveryPolicy:
+        base = self.defaults.delivery
+        if route.delivery is None:
+            return base
+        return base.model_copy(update=route.delivery.model_dump(exclude_unset=True))

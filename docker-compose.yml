@@ -1,0 +1,29 @@
+services:
+  gotify2apprise:
+    build: .
+    image: mfandreich/gotify2apprise:latest
+    container_name: gotify2apprise
+    restart: unless-stopped
+    environment:
+      - CONF_FILE=/etc/gotify2apprise/config.yaml
+      - DATA_DIR=/var/lib/gotify2apprise
+      - UI_HOST=0.0.0.0
+      - UI_PORT=8080
+      - AUTO_MIGRATE_V1=false
+      - ADMIN_USER=admin
+      - ADMIN_PASSWORD=changeme
+      # - STORAGE_SECRET=long-random-string
+      - GOTIFY_HOST=gotify:80
+      - GOTIFY_TOKEN=gotify_client_token
+    volumes:
+      - ./config.yaml:/etc/gotify2apprise/config.yaml
+      - g2a-data:/var/lib/gotify2apprise
+    ports:
+      - "8080:8080"
+    # Put this behind Caddy/Traefik. Do not publish 8080 to the internet.
+    # SMTP listener (if enabled in YAML) needs an extra port, e.g.:
+    #   ports:
+    #     - "2525:2525"
+
+volumes:
+  g2a-data:

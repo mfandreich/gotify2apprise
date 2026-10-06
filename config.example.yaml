@@ -1,0 +1,55 @@
+version: 2
+
+defaults:
+  title_template: "$title"
+  message_template: "$message"
+  delivery:
+    max_attempts: 5
+    initial_delay_sec: 30
+    backoff: exponential
+    max_delay_sec: 3600
+
+listeners:
+  - id: gotify-main
+    type: gotify
+    enabled: true
+    tags: [alerts, homelab]
+    options:
+      host: "${GOTIFY_HOST}"
+      client_token: "${GOTIFY_TOKEN}"
+      ssl: false
+      app_tokens: [all]
+
+  # Internal SMTP sink — do not expose this port to the internet.
+  # - id: smtp-local
+  #   type: smtp
+  #   enabled: true
+  #   tags: [mail]
+  #   options:
+  #     host: 0.0.0.0
+  #     port: 2525
+  #     default_priority: 5
+
+receivers:
+  - id: telegram-alerts
+    type: apprise
+    enabled: true
+    tags: [alerts]
+    options:
+      urls:
+        - tgram://BOT_TOKEN/CHAT_ID
+
+routes:
+  - id: gotify-to-telegram
+    enabled: true
+    from:
+      listeners: [gotify-main]
+      # listener_tags: [alerts]
+    to:
+      receivers: [telegram-alerts]
+      # receiver_tags: [alerts]
+    filter:
+      min_priority: warn
+    templates:
+      title: "[$priorityStr] $title"
+      body: "$message"
