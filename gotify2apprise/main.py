@@ -5,6 +5,7 @@ import sys
 
 from dotenv import load_dotenv
 
+from gotify2apprise import __version__
 from gotify2apprise.config.manager import ConfigManager, ConfigV1Error
 from gotify2apprise.runtime import configure_logging
 from gotify2apprise.settings import Settings
@@ -31,6 +32,7 @@ def preflight(settings: Settings) -> None:
 def main() -> None:
     load_dotenv()
     configure_logging()
+    log.info("gotify2apprise %s", __version__)
     settings = Settings.from_env()
     preflight(settings)
     from gotify2apprise.web.app import run_ui

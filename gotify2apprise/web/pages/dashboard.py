@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from nicegui import ui
 
-from gotify2apprise.datetime_fmt import datetime_format_from_config, format_delivery_rows
+from gotify2apprise.datetime_fmt import datetime_format_from_config
+from gotify2apprise.display import DELIVERY_PAGE_SIZE, present_delivery_rows
 from gotify2apprise.runtime import get_runtime
+from gotify2apprise.web.delivery_table import delivery_columns, table_scroll_box, wire_delivery_table
 from gotify2apprise.web.layout import page_frame, require_auth
 
 
@@ -11,13 +13,13 @@ from gotify2apprise.web.layout import page_frame, require_auth
 async def dashboard_page() -> None:
     if not require_auth():
         return
-    page_frame("Dashboard")
+    page_frame("Dashboard", fill=True)
     bridge = get_runtime().bridge
     counts = await bridge.queue.counts()
     totals_1d = await bridge.stats.totals(1)
     totals_7d = await bridge.stats.totals(7)
-    recent = format_delivery_rows(
-        await bridge.queue.list_recent(limit=20),
+    recent = present_delivery_rows(
+        await bridge.queue.list_recent(limit=DELIVERY_PAGE_SIZE),
         datetime_format_from_config(bridge.config),
     )
 
@@ -33,15 +35,20 @@ async def dashboard_page() -> None:
     ui.label(f"Listeners running: {running}").classes("q-px-md")
 
     ui.label("Recent deliveries").classes("text-h6 q-px-md q-pt-md")
-    columns = [
-        {"name": "created_at", "label": "Time", "field": "created_at", "sortable": True},
-        {"name": "listener_id", "label": "Listener", "field": "listener_id"},
-        {"name": "receiver_id", "label": "Receiver", "field": "receiver_id"},
-        {"name": "status", "label": "Status", "field": "status"},
-        {"name": "title", "label": "Title", "field": "title"},
-        {"name": "last_error", "label": "Error", "field": "last_error"},
-    ]
-    ui.table(columns=columns, rows=recent, row_key="id").classes("w-full q-pa-md")
+    columns = delivery_columns()
+
+    async def retry(delivery_id: str) -> None:
+        await bridge.retry_delivery(delivery_id)
+        ui.notify("Queued for retry")
+        table.rows = present_delivery_rows(
+            await bridge.queue.list_recent(limit=DELIVERY_PAGE_SIZE),
+            datetime_format_from_config(bridge.config),
+        )
+        table.update()
+
+    with table_scroll_box(dashboard=True):
+        table = ui.table(columns=columns, rows=recent, row_key="id").classes("w-full")
+        wire_delivery_table(table, on_retry=retry)
 
 
 def _stat(label: str, value: int) -> None:

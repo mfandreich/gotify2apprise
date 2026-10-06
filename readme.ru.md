@@ -1,6 +1,6 @@
 # gotify2apprise
 
-[![Docker](https://img.shields.io/docker/v/mfandreich/gotify2apprise?logo=docker&label=Docker)](https://hub.docker.com/r/mfandreich/gotify2apprise)
+[![Docker](https://img.shields.io/docker/v/mfandreich/gotify2apprise?logo=docker&label=Docker&sort=semver)](https://hub.docker.com/r/mfandreich/gotify2apprise) [![GHCR](https://img.shields.io/github/v/tag/mfandreich/gotify2apprise?logo=github&label=GHCR)](https://github.com/mfandreich/gotify2apprise/pkgs/container/gotify2apprise)
 
 [English](readme.md) | Русский
 
@@ -8,18 +8,7 @@ Homelab-мост уведомлений: **listeners** (Gotify, опционал
 
 Хобби-проект, сделан совместно с [Cursor](https://cursor.com).
 
-```
-Gotify WS / SMTP
-        │
-        ▼
-  listeners  ──►  routes (id ∪ tags, фильтры приоритета)
-        │
-        ▼
-  очередь SQLite  ──►  receivers (Apprise)  с backoff
-        │
-        ▼
-     NiceGUI  (конфиг, retry, статистика)
-```
+![Главная](docs/dashboard.png)
 
 UI лучше держать за reverse proxy. Логин в приложении — один локальный пользователь, это не production-grade auth.
 
@@ -144,7 +133,7 @@ python scripts/migrate_config_v1_to_v2.py config.yaml -o config.v2.yaml
 
 ## Docker Compose
 
-Образ: [`mfandreich/gotify2apprise`](https://hub.docker.com/r/mfandreich/gotify2apprise). Скопируйте [config.example.yaml](config.example.yaml) в `config.yaml`, затем:
+Образ: [`mfandreich/gotify2apprise`](https://hub.docker.com/r/mfandreich/gotify2apprise) или [`ghcr.io/mfandreich/gotify2apprise`](https://github.com/mfandreich/gotify2apprise/pkgs/container/gotify2apprise). Скопируйте [config.example.yaml](config.example.yaml) в `config.yaml`, затем:
 
 ```bash
 docker compose up -d

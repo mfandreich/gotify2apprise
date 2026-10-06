@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from nicegui import app, ui
 
+from gotify2apprise import __version__
 from gotify2apprise.runtime import get_runtime
 from gotify2apprise.web.layout import page_frame, require_auth
 
@@ -46,6 +47,10 @@ async def settings_page() -> None:
         ui.label(f"MESSAGE_RETENTION_DAYS = {rt.settings.message_retention_days}")
         ui.label(f"MAX_MESSAGES_PER_CHANNEL = {rt.settings.max_messages_per_channel}")
         ui.label("Change these via environment variables (container restart).").classes("g2a-muted")
+
+        ui.separator()
+        ui.label("About").classes("text-h6")
+        ui.label(f"gotify2apprise {__version__}")
 
         ui.separator()
         ui.label("This UI is not production-grade auth. Put it behind a reverse proxy.").classes(

@@ -83,7 +83,7 @@ async def config_page() -> None:
             editor.value = text + "\nlisteners:\n" + SMTP_SNIPPET + "\n"
         ui.notify("SMTP listener snippet inserted — save to apply")
 
-    with ui.row().classes("q-pa-md gap-2"):
+    with ui.row().classes("q-pa-md gap-2 flex-wrap"):
         ui.button("Validate", on_click=validate)
         ui.button("Save & reload", on_click=save).props("unelevated")
         ui.button("Reload from disk", on_click=reload_only).props("flat")

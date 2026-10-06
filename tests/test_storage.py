@@ -88,3 +88,65 @@ async def test_auth_bootstrap(tmp_path: Path) -> None:
     assert not await auth.verify("admin", "nope")
     assert not await auth.verify("other", "secretsecret")
     await db.close()
+
+
+@pytest.mark.asyncio
+async def test_list_recent_offset_and_count(tmp_path: Path) -> None:
+    db = Database(tmp_path / "t.db")
+    await db.connect()
+    messages = MessagesRepo(db)
+    queue = DeliveryQueue(db)
+    msg = NormalizedMessage(
+        source_listener_id="gotify-main",
+        title="t",
+        body="b",
+        priority=5,
+    )
+    await messages.insert(msg)
+    policy = DeliveryPolicy(max_attempts=2, initial_delay_sec=1, backoff="fixed")
+    ids = [
+        await queue.enqueue(
+            message_id=msg.id,
+            receiver_id="telegram",
+            route_id="r1",
+            title=f"t{i}",
+            body="b",
+            policy=policy,
+        )
+        for i in range(3)
+    ]
+    page1 = await queue.list_recent(limit=2, offset=0)
+    page2 = await queue.list_recent(limit=2, offset=2)
+    assert len(page1) == 2
+    assert len(page2) == 1
+    assert {row["id"] for row in page1 + page2} == set(ids)
+    assert await queue.count_deliveries() == 3
+    await db.close()
+
+
+@pytest.mark.asyncio
+async def test_delivery_list_filters(tmp_path: Path) -> None:
+    db = Database(tmp_path / "t.db")
+    await db.connect()
+    messages = MessagesRepo(db)
+    queue = DeliveryQueue(db)
+    policy = DeliveryPolicy(max_attempts=2, initial_delay_sec=1, backoff="fixed")
+    low = NormalizedMessage(source_listener_id="smtp-a", title="lo", body="b", priority=1)
+    high = NormalizedMessage(source_listener_id="smtp-b", title="hi", body="b", priority=10)
+    await messages.insert(low)
+    await messages.insert(high)
+    await queue.enqueue(
+        message_id=low.id, receiver_id="to-a", route_id="r1", title="lo", body="b", policy=policy
+    )
+    await queue.enqueue(
+        message_id=high.id, receiver_id="to-b", route_id="r2", title="hi", body="b", policy=policy
+    )
+    assert await queue.count_deliveries(listener_id="smtp-a") == 1
+    assert await queue.count_deliveries(receiver_id="to-b") == 1
+    assert await queue.count_deliveries(priority_bucket="info") == 1
+    assert await queue.count_deliveries(priority_bucket="crit") == 1
+    assert await queue.count_deliveries(priority_bucket="warn") == 0
+    rows = await queue.list_recent(listener_id="smtp-b", priority_bucket="crit")
+    assert len(rows) == 1
+    assert rows[0]["receiver_id"] == "to-b"
+    await db.close()

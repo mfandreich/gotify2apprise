@@ -1,6 +1,6 @@
 # gotify2apprise
 
-[![Docker](https://img.shields.io/docker/v/mfandreich/gotify2apprise?logo=docker&label=Docker)](https://hub.docker.com/r/mfandreich/gotify2apprise)
+[![Docker](https://img.shields.io/docker/v/mfandreich/gotify2apprise?logo=docker&label=Docker&sort=semver)](https://hub.docker.com/r/mfandreich/gotify2apprise) [![GHCR](https://img.shields.io/github/v/tag/mfandreich/gotify2apprise?logo=github&label=GHCR)](https://github.com/mfandreich/gotify2apprise/pkgs/container/gotify2apprise)
 
 English | [Русский](readme.ru.md)
 
@@ -8,18 +8,7 @@ Homelab notification bridge: **listeners** (Gotify, optional SMTP) → YAML **ro
 
 Hobby project, built together with [Cursor](https://cursor.com).
 
-```
-Gotify WS / SMTP
-        │
-        ▼
-  listeners  ──►  routes (id ∪ tags, priority filters)
-        │
-        ▼
-  SQLite queue  ──►  receivers (Apprise)  with backoff
-        │
-        ▼
-     NiceGUI  (edit config, retry, stats)
-```
+![Dashboard](docs/dashboard.png)
 
 Put the UI behind a reverse proxy. App login is a single local user, not production-grade auth.
 
@@ -144,7 +133,7 @@ Or set `AUTO_MIGRATE_V1=true`: backup `config.yaml.bak.v1`, write v2, continue b
 
 ## Docker Compose
 
-Image: [`mfandreich/gotify2apprise`](https://hub.docker.com/r/mfandreich/gotify2apprise). Copy [config.example.yaml](config.example.yaml) to `config.yaml`, then:
+Image: [`mfandreich/gotify2apprise`](https://hub.docker.com/r/mfandreich/gotify2apprise) or [`ghcr.io/mfandreich/gotify2apprise`](https://github.com/mfandreich/gotify2apprise/pkgs/container/gotify2apprise). Copy [config.example.yaml](config.example.yaml) to `config.yaml`, then:
 
 ```bash
 docker compose up -d

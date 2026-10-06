@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import uuid4
 
-from gotify2apprise.models.config import DeliveryPolicy
+from gotify2apprise.models.config import KEYWORD_RANGE, DeliveryPolicy
 from gotify2apprise.storage.db import Database
 
 
@@ -125,28 +125,79 @@ class DeliveryQueue:
         )
         await self.db.conn.commit()
 
-    async def list_recent(
+    def _delivery_filters(
         self,
         *,
-        limit: int = 100,
         status: str | None = None,
+        listener_id: str | None = None,
         receiver_id: str | None = None,
-    ) -> list[dict[str, Any]]:
+        priority_bucket: str | None = None,
+    ) -> tuple[str, list[Any]]:
         clauses = ["1=1"]
         args: list[Any] = []
         if status:
             clauses.append("d.status = ?")
             args.append(status)
+        if listener_id:
+            clauses.append("m.listener_id = ?")
+            args.append(listener_id)
         if receiver_id:
             clauses.append("d.receiver_id = ?")
             args.append(receiver_id)
+        if priority_bucket:
+            rng = KEYWORD_RANGE.get(priority_bucket)
+            if rng:
+                placeholders = ",".join("?" * len(rng))
+                clauses.append(f"m.priority IN ({placeholders})")
+                args.extend(rng)
+        return " AND ".join(clauses), args
+
+    async def count_deliveries(
+        self,
+        *,
+        status: str | None = None,
+        listener_id: str | None = None,
+        receiver_id: str | None = None,
+        priority_bucket: str | None = None,
+    ) -> int:
+        where, args = self._delivery_filters(
+            status=status,
+            listener_id=listener_id,
+            receiver_id=receiver_id,
+            priority_bucket=priority_bucket,
+        )
+        sql = (
+            "SELECT COUNT(*) AS n FROM deliveries d "
+            "JOIN messages m ON m.id = d.message_id "
+            f"WHERE {where}"
+        )
+        cursor = await self.db.conn.execute(sql, args)
+        row = await cursor.fetchone()
+        return int(row["n"]) if row else 0
+
+    async def list_recent(
+        self,
+        *,
+        limit: int = 100,
+        offset: int = 0,
+        status: str | None = None,
+        listener_id: str | None = None,
+        receiver_id: str | None = None,
+        priority_bucket: str | None = None,
+    ) -> list[dict[str, Any]]:
+        where, args = self._delivery_filters(
+            status=status,
+            listener_id=listener_id,
+            receiver_id=receiver_id,
+            priority_bucket=priority_bucket,
+        )
         sql = (
             "SELECT d.*, m.listener_id, m.priority, m.received_at AS message_received_at "
             "FROM deliveries d JOIN messages m ON m.id = d.message_id "
-            f"WHERE {' AND '.join(clauses)} "
-            "ORDER BY d.created_at DESC LIMIT ?"
+            f"WHERE {where} "
+            "ORDER BY d.created_at DESC LIMIT ? OFFSET ?"
         )
-        args.append(limit)
+        args.extend([limit, max(0, offset)])
         cursor = await self.db.conn.execute(sql, args)
         rows = await cursor.fetchall()
         return [dict(row) for row in rows]
