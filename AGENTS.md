@@ -46,7 +46,7 @@ Python package `gotify2apprise/`. Keep new listener/receiver types behind the ex
 2. Class with `start`/`stop` or `send`.
 3. Register in `listeners/factory.py` or `receivers/factory.py`.
 4. Document YAML in `readme.md`, `readme.ru.md`, and `config.example.yaml`.
-5. SMTP is internal-only; do not add open-relay behaviour.
+5. SMTP is internal-only; do not add open-relay behaviour. Multiple `smtp` listeners may share a bind and split on `mailboxes` (local-part or full address).
 
 ## Do not
 

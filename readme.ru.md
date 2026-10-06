@@ -100,15 +100,31 @@ routes:
 
 ### SMTP-listener
 
-Только для внутренней сети (без auth и TLS в этой версии фичи):
+Только для внутренней сети (без auth и TLS в этой версии фичи). Несколько `smtp` listener'ов могут **сидеть на одном host:port** и делиться по `mailboxes`:
+
+- `alerts` — только local-part, любой домен (`alerts@anything`)
+- `alerts@bridge.local` — полное совпадение адреса (без учёта регистра)
+- если подошли оба варианта, побеждает полный адрес
+- суффиксы `.low` `.info` `.normal` `.warn` `.high` `.crit` задают приоритет (`alerts.high@bridge.local`)
+
+Если на одном порту больше одного SMTP-listener, у каждого **обязательны** непересекающиеся `mailboxes`. Один listener с пустым `mailboxes` по-прежнему принимает всё на этом порту.
 
 ```yaml
-- id: smtp-local
+- id: smtp-alerts
   type: smtp
   tags: [mail]
   options:
     host: 0.0.0.0
     port: 2525
+    mailboxes: [alerts]
+    default_priority: 5
+- id: smtp-uptime
+  type: smtp
+  tags: [mail]
+  options:
+    host: 0.0.0.0
+    port: 2525
+    mailboxes: [uptime@bridge.local]
     default_priority: 5
 ```
 

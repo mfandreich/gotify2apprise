@@ -7,13 +7,14 @@ from gotify2apprise.runtime import get_runtime
 from gotify2apprise.web.layout import page_frame, require_auth
 
 SMTP_SNIPPET = """
-  - id: smtp-local
+  - id: smtp-alerts
     type: smtp
     enabled: true
     tags: [mail]
     options:
       host: 0.0.0.0
       port: 2525
+      mailboxes: [alerts]
       default_priority: 5
 """.strip(
     "\n"
@@ -72,8 +73,8 @@ async def config_page() -> None:
 
     def insert_smtp() -> None:
         text = editor.value or ""
-        if "type: smtp" in text:
-            ui.notify("An SMTP listener is already in the YAML")
+        if "id: smtp-alerts" in text:
+            ui.notify("An SMTP listener smtp-alerts is already in the YAML")
             return
         needle = "listeners:"
         if needle in text:

@@ -23,13 +23,16 @@ listeners:
       app_tokens: [all]
 
   # Internal SMTP sink — do not expose this port to the internet.
-  # - id: smtp-local
+  # Multiple smtp listeners may share host:port; they split on RCPT mailbox
+  # (mailrise-style: alerts@host or alerts.high@host).
+  # - id: smtp-alerts
   #   type: smtp
   #   enabled: true
   #   tags: [mail]
   #   options:
   #     host: 0.0.0.0
   #     port: 2525
+  #     mailboxes: [alerts]                 # or alerts@bridge.local for an exact address
   #     default_priority: 5
 
 receivers:

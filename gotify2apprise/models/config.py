@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import defaultdict
 from datetime import datetime, timezone
 from typing import Any, Literal
 
@@ -37,6 +38,25 @@ def min_priority_value(value: int | str) -> int:
     if key not in KEYWORD_MIN:
         raise ValueError(f"unknown priority keyword: {value}")
     return KEYWORD_MIN[key]
+
+
+def normalize_mailbox(value: str) -> str:
+    """Lowercase SMTP addr-spec without angle brackets. Keeps domain if present."""
+    return value.strip().strip("<>").strip().lower()
+
+
+def mailbox_local_part(value: str) -> str:
+    text = normalize_mailbox(value)
+    if "@" in text:
+        return text.split("@", 1)[0]
+    return text
+
+
+def mailbox_domain(value: str) -> str | None:
+    text = normalize_mailbox(value)
+    if "@" not in text:
+        return None
+    return text.split("@", 1)[1] or None
 
 
 def reject_unlimited_exponential_without_cap(policy: DeliveryPolicy) -> None:
@@ -81,6 +101,24 @@ class SmtpOptions(BaseModel):
     port: int = 2525
     hostname: str | None = None
     default_priority: int = 5
+    mailboxes: list[str] = Field(default_factory=list)
+
+    @field_validator("mailboxes")
+    @classmethod
+    def mailboxes_normalized(cls, value: list[str]) -> list[str]:
+        out: list[str] = []
+        seen: set[str] = set()
+        for item in value:
+            name = normalize_mailbox(item)
+            if not name or not mailbox_local_part(name):
+                raise ValueError("mailbox must not be empty")
+            if name.endswith("@"):
+                raise ValueError(f"mailbox {item!r} needs a domain after @")
+            if name in seen:
+                raise ValueError(f"duplicate mailbox {name!r}")
+            seen.add(name)
+            out.append(name)
+        return out
 
 
 class AppriseOptions(BaseModel):
@@ -249,6 +287,35 @@ class AppConfig(BaseModel):
                 self.effective_delivery(route)
             except ValueError as exc:
                 raise ValueError(f"route {route.id}: {exc}") from exc
+        return self
+
+    @model_validator(mode="after")
+    def smtp_shared_binds(self) -> AppConfig:
+        groups: dict[tuple[str, int], list[ListenerConfig]] = defaultdict(list)
+        for item in self.listeners:
+            if item.type != "smtp" or not item.enabled:
+                continue
+            opts = item.smtp()
+            groups[(opts.host, opts.port)].append(item)
+        for (host, port), items in groups.items():
+            if len(items) < 2:
+                continue
+            missing = [item.id for item in items if not item.smtp().mailboxes]
+            if missing:
+                raise ValueError(
+                    "SMTP listeners "
+                    + ", ".join(missing)
+                    + f" share {host}:{port} but have empty mailboxes; "
+                    "set options.mailboxes to split by recipient, or use different ports"
+                )
+            owners: dict[str, str] = {}
+            for item in items:
+                for box in item.smtp().mailboxes:
+                    if box in owners:
+                        raise ValueError(
+                            f"mailbox {box!r} is used by both {owners[box]} and {item.id}"
+                        )
+                    owners[box] = item.id
         return self
 
     def listener_by_id(self, listener_id: str) -> ListenerConfig | None:

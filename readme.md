@@ -100,15 +100,31 @@ Forwarding back into Gotify (`gotify://…` Apprise URL) can loop — don't.
 
 ### SMTP listener
 
-For internal networks only (no auth, no TLS in v1 of this feature):
+For internal networks only (no auth, no TLS in v1 of this feature). Several `smtp` listeners may **share one host:port**; they split on `mailboxes` vs `RCPT TO`:
+
+- `alerts` — local-part only, any domain (`alerts@anything`)
+- `alerts@bridge.local` — exact address (case-insensitive). Wins over a local-part rule on the same recipient.
+
+Suffixes `.low` `.info` `.normal` `.warn` `.high` `.crit` override priority (`alerts.high@bridge.local` still matches `alerts` or `alerts@bridge.local`).
+
+If more than one SMTP listener binds the same port, each **must** set `mailboxes`, and those names must not overlap. A single listener with empty `mailboxes` still accepts everything on that port.
 
 ```yaml
-- id: smtp-local
+- id: smtp-alerts
   type: smtp
   tags: [mail]
   options:
     host: 0.0.0.0
     port: 2525
+    mailboxes: [alerts]
+    default_priority: 5
+- id: smtp-uptime
+  type: smtp
+  tags: [mail]
+  options:
+    host: 0.0.0.0
+    port: 2525
+    mailboxes: [uptime@bridge.local]
     default_priority: 5
 ```
 
