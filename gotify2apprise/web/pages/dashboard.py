@@ -41,6 +41,6 @@ async def dashboard_page() -> None:
 
 
 def _stat(label: str, value: int) -> None:
-    with ui.column().classes("q-pa-md bg-grey-2 rounded-borders"):
+    with ui.column().classes("q-pa-md g2a-stat rounded-borders"):
         ui.label(str(value)).classes("text-h5")
-        ui.label(label).classes("text-grey")
+        ui.label(label).classes("g2a-muted")

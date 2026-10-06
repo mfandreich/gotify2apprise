@@ -6,6 +6,7 @@ from nicegui import ui
 
 from gotify2apprise.runtime import get_runtime
 from gotify2apprise.web.layout import page_frame, require_auth
+from gotify2apprise.web.theme import is_dark
 
 
 @ui.page("/stats")
@@ -23,12 +24,25 @@ async def stats_page() -> None:
     for row in rows:
         row["key"] = f"{row['date']}:{row['listener_id']}:{row['receiver_id']}"
     days = sorted(by_day)
+    dark = is_dark()
+    fg = "#eeeeee" if dark else "#1a1a1a"
+    split = "#555555" if dark else "#c5cdd8"
     ui.echart(
         {
+            "textStyle": {"color": fg},
             "tooltip": {"trigger": "axis"},
-            "legend": {"data": ["ok", "fail"]},
-            "xAxis": {"type": "category", "data": days},
-            "yAxis": {"type": "value"},
+            "legend": {"data": ["ok", "fail"], "textStyle": {"color": fg}},
+            "xAxis": {
+                "type": "category",
+                "data": days,
+                "axisLabel": {"color": fg},
+                "axisLine": {"lineStyle": {"color": fg}},
+            },
+            "yAxis": {
+                "type": "value",
+                "axisLabel": {"color": fg},
+                "splitLine": {"lineStyle": {"color": split}},
+            },
             "series": [
                 {"name": "ok", "type": "bar", "data": [by_day[d]["ok"] for d in days]},
                 {"name": "fail", "type": "bar", "data": [by_day[d]["fail"] for d in days]},

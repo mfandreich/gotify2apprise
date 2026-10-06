@@ -45,10 +45,10 @@ async def settings_page() -> None:
         ui.label("Retention").classes("text-h6")
         ui.label(f"MESSAGE_RETENTION_DAYS = {rt.settings.message_retention_days}")
         ui.label(f"MAX_MESSAGES_PER_CHANNEL = {rt.settings.max_messages_per_channel}")
-        ui.label("Change these via environment variables (container restart).").classes("text-grey")
+        ui.label("Change these via environment variables (container restart).").classes("g2a-muted")
 
         ui.separator()
         ui.label("This UI is not production-grade auth. Put it behind a reverse proxy.").classes(
-            "text-grey"
+            "g2a-muted"
         )
-        ui.label(f"Signed in as {app.storage.user.get('username') or username}").classes("text-grey")
+        ui.label(f"Signed in as {app.storage.user.get('username') or username}").classes("g2a-muted")

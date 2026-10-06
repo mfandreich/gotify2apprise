@@ -33,7 +33,7 @@ async def config_page() -> None:
         current = bridge.config_manager.dumps(bridge.config)
 
     ui.label("YAML is the source of truth. Validate, save, then reload listeners.").classes(
-        "q-px-md q-pt-md text-grey"
+        "q-px-md q-pt-md g2a-muted"
     )
     editor = ui.textarea(value=current).classes("w-full q-px-md").props("outlined rows=28")
     status = ui.label("").classes("q-px-md")

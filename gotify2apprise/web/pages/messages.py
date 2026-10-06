@@ -18,7 +18,7 @@ async def messages_page() -> None:
             {"": "any status", "pending": "pending", "failed": "failed", "success": "success", "dead": "dead"},
             value="",
             label="Status",
-        ).classes("w-40")
+        ).props("outlined").classes("w-40")
         refresh_btn = ui.button("Refresh")
 
     columns = [

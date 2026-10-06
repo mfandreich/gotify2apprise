@@ -7,6 +7,7 @@ from nicegui import app, ui
 from gotify2apprise.config.manager import ConfigV1Error
 from gotify2apprise.runtime import start_runtime, stop_runtime
 from gotify2apprise.settings import Settings
+from gotify2apprise.web.theme import configure_ui
 
 log = logging.getLogger(__name__)
 
@@ -18,6 +19,8 @@ def run_ui(settings: Settings) -> None:
     import gotify2apprise.web.pages.messages  # noqa: F401
     import gotify2apprise.web.pages.settings_page  # noqa: F401
     import gotify2apprise.web.pages.stats  # noqa: F401
+
+    configure_ui()
 
     @app.on_startup
     async def _startup() -> None:
@@ -42,6 +45,7 @@ def run_ui(settings: Settings) -> None:
             show=False,
             storage_secret=settings.storage_secret,
             title="gotify2apprise",
+            dark=False,
             favicon=None,
             uvicorn_reload_excludes="*.db,*.db-wal,*.db-shm",
         )
