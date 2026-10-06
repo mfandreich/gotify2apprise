@@ -88,7 +88,7 @@ class DeliveryQueue:
         attempt = int(row["attempt"]) + 1
         max_attempts = int(row["max_attempts"])
         now = datetime.now(timezone.utc)
-        if attempt >= max_attempts:
+        if max_attempts > 0 and attempt >= max_attempts:
             await self.db.conn.execute(
                 """
                 UPDATE deliveries

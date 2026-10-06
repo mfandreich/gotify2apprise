@@ -27,7 +27,7 @@ Python package `gotify2apprise/`. Keep new listener/receiver types behind the ex
 1. `Settings.from_env()`, refuse v1 YAML unless `AUTO_MIGRATE_V1=true`.
 2. NiceGUI starts; `on_startup` opens SQLite, bootstraps the single user, loads YAML, starts enabled listeners + delivery worker.
 3. Listener emits `NormalizedMessage` → persist → `RoutingEngine.route` → one `deliveries` row per (route, receiver).
-4. Worker sends via receiver; failures use route/default `delivery` backoff; `dead` after `max_attempts`.
+4. Worker sends via receiver; failures use route/default `delivery` backoff; `dead` after `max_attempts` (`0` = unlimited; exponential unlimited requires explicit `max_delay_sec`).
 5. UI can Save & reload YAML (restart changed listeners only) and Retry a delivery.
 
 ## Conventions

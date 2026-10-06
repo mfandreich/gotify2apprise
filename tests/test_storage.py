@@ -45,6 +45,40 @@ async def test_message_and_delivery_roundtrip(tmp_path: Path) -> None:
 
 
 @pytest.mark.asyncio
+async def test_unlimited_attempts_never_dead(tmp_path: Path) -> None:
+    db = Database(tmp_path / "t.db")
+    await db.connect()
+    messages = MessagesRepo(db)
+    queue = DeliveryQueue(db)
+    msg = NormalizedMessage(
+        source_listener_id="gotify-main",
+        title="t",
+        body="b",
+        priority=5,
+    )
+    await messages.insert(msg)
+    policy = DeliveryPolicy(max_attempts=0, initial_delay_sec=1, backoff="fixed")
+    did = await queue.enqueue(
+        message_id=msg.id,
+        receiver_id="telegram",
+        route_id="r1",
+        title="t",
+        body="b",
+        policy=policy,
+    )
+    row = (await queue.due())[0]
+    for _ in range(8):
+        status = await queue.mark_failure(did, "boom", row)
+        assert status == "failed"
+        row = dict(row)
+        row["attempt"] = int(row["attempt"]) + 1
+    stored = (await queue.list_recent(limit=1))[0]
+    assert stored["status"] == "failed"
+    assert stored["attempt"] == 8
+    await db.close()
+
+
+@pytest.mark.asyncio
 async def test_auth_bootstrap(tmp_path: Path) -> None:
     db = Database(tmp_path / "t.db")
     await db.connect()

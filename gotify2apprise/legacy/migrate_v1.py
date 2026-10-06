@@ -94,6 +94,7 @@ def convert_v1(raw: dict[str, Any], settings: Settings | None = None) -> dict[st
     defaults: dict[str, Any] = {
         "title_template": "$title",
         "message_template": "$message",
+        "datetime_format": "%Y-%m-%d %H:%M:%S.%f",
         "delivery": {
             "max_attempts": 5,
             "initial_delay_sec": 30,

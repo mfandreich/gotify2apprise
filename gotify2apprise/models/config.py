@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from gotify2apprise.datetime_fmt import DEFAULT_DATETIME_FORMAT, format_datetime
 
 PriorityKeyword = Literal["info", "warn", "crit"]
 BackoffKind = Literal["fixed", "exponential"]
@@ -34,6 +37,17 @@ def min_priority_value(value: int | str) -> int:
     if key not in KEYWORD_MIN:
         raise ValueError(f"unknown priority keyword: {value}")
     return KEYWORD_MIN[key]
+
+
+def reject_unlimited_exponential_without_cap(policy: DeliveryPolicy) -> None:
+    if (
+        policy.max_attempts == 0
+        and policy.backoff == "exponential"
+        and "max_delay_sec" not in policy.model_fields_set
+    ):
+        raise ValueError(
+            "max_delay_sec is required when backoff is exponential and max_attempts is 0"
+        )
 
 
 def expand_priority_entry(value: int | str) -> set[int]:
@@ -153,9 +167,9 @@ class DeliveryPolicy(BaseModel):
 
     @field_validator("max_attempts")
     @classmethod
-    def attempts_positive(cls, value: int) -> int:
-        if value < 1:
-            raise ValueError("max_attempts must be >= 1")
+    def attempts_non_negative(cls, value: int) -> int:
+        if value < 0:
+            raise ValueError("max_attempts must be >= 0 (0 = unlimited)")
         return value
 
 
@@ -186,7 +200,26 @@ class RouteConfig(BaseModel):
 class DefaultsConfig(BaseModel):
     title_template: str = "$title"
     message_template: str = "$message"
+    datetime_format: str = DEFAULT_DATETIME_FORMAT
     delivery: DeliveryPolicy = Field(default_factory=DeliveryPolicy)
+
+    @field_validator("datetime_format")
+    @classmethod
+    def datetime_format_usable(cls, value: str) -> str:
+        pattern = value.strip()
+        if not pattern:
+            raise ValueError("datetime_format must not be empty")
+        probe = datetime(2026, 1, 2, 3, 4, 5, 123456, tzinfo=timezone.utc)
+        try:
+            format_datetime(probe, pattern)
+        except Exception as exc:
+            raise ValueError(f"invalid datetime_format: {exc}") from exc
+        return pattern
+
+    @model_validator(mode="after")
+    def unlimited_exponential_needs_cap(self) -> DefaultsConfig:
+        reject_unlimited_exponential_without_cap(self.delivery)
+        return self
 
 
 class AppConfig(BaseModel):
@@ -207,6 +240,15 @@ class AppConfig(BaseModel):
             dupes = {i for i in ids if ids.count(i) > 1}
             if dupes:
                 raise ValueError(f"duplicate {label} id(s): {sorted(dupes)}")
+        return self
+
+    @model_validator(mode="after")
+    def unlimited_exponential_routes(self) -> AppConfig:
+        for route in self.routes:
+            try:
+                self.effective_delivery(route)
+            except ValueError as exc:
+                raise ValueError(f"route {route.id}: {exc}") from exc
         return self
 
     def listener_by_id(self, listener_id: str) -> ListenerConfig | None:
@@ -231,4 +273,6 @@ class AppConfig(BaseModel):
         base = self.defaults.delivery
         if route.delivery is None:
             return base
-        return base.model_copy(update=route.delivery.model_dump(exclude_unset=True))
+        merged = base.model_copy(update=route.delivery.model_dump(exclude_unset=True))
+        reject_unlimited_exponential_without_cap(merged)
+        return merged

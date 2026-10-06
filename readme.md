@@ -74,7 +74,7 @@ routes:
       title: "[$priorityStr] $title"
       body: "$message"
     delivery:
-      max_attempts: 5
+      max_attempts: 5  # 0 = retry forever; exponential then requires max_delay_sec
       initial_delay_sec: 30
       backoff: exponential   # or fixed
       max_delay_sec: 3600
@@ -83,6 +83,10 @@ routes:
 Priority buckets: **info** 0–3, **warn** 4–7, **crit** 8–10. An integer in `priorities` means that exact value.
 
 Template placeholders: `$title` `$message` `$appid` `$priority` `$priorityStr`.
+
+`defaults.datetime_format` controls timestamps in the web UI (UTC). Default is `%Y-%m-%d %H:%M:%S.%f`. Here `%f` is **milliseconds, three digits** (not Python microseconds). Omit the key to keep the default.
+
+`max_attempts: 0` retries forever. Exponential backoff then **requires** `max_delay_sec` (otherwise delays would grow without a cap). `fixed` backoff does not.
 
 `${ENV}` and `${ENV:-default}` are expanded at load time.
 

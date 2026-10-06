@@ -3,8 +3,10 @@ version: 2
 defaults:
   title_template: "$title"
   message_template: "$message"
+  # UI timestamps (UTC). %f is milliseconds, three digits.
+  datetime_format: "%Y-%m-%d %H:%M:%S.%f"
   delivery:
-    max_attempts: 5
+    max_attempts: 5  # 0 = retry forever; exponential then requires max_delay_sec
     initial_delay_sec: 30
     backoff: exponential
     max_delay_sec: 3600

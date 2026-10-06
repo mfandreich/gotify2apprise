@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from nicegui import ui
 
+from gotify2apprise.datetime_fmt import datetime_format_from_config, format_delivery_rows
 from gotify2apprise.runtime import get_runtime
 from gotify2apprise.web.layout import page_frame, require_auth
 
@@ -15,7 +16,10 @@ async def dashboard_page() -> None:
     counts = await bridge.queue.counts()
     totals_1d = await bridge.stats.totals(1)
     totals_7d = await bridge.stats.totals(7)
-    recent = await bridge.queue.list_recent(limit=20)
+    recent = format_delivery_rows(
+        await bridge.queue.list_recent(limit=20),
+        datetime_format_from_config(bridge.config),
+    )
 
     with ui.row().classes("q-pa-md gap-4 flex-wrap"):
         _stat("Pending", counts.get("pending", 0))

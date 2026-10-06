@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from nicegui import ui
 
+from gotify2apprise.datetime_fmt import datetime_format_from_config, format_delivery_rows
 from gotify2apprise.runtime import get_runtime
 from gotify2apprise.web.layout import page_frame, require_auth
 
@@ -37,7 +38,7 @@ async def messages_page() -> None:
     async def reload_rows() -> None:
         flt = status.value or None
         rows = await bridge.queue.list_recent(limit=200, status=flt)
-        table.rows = rows
+        table.rows = format_delivery_rows(rows, datetime_format_from_config(bridge.config))
         table.update()
 
     async def retry(delivery_id: str) -> None:
