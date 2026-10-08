@@ -49,7 +49,8 @@ listeners:
       host: "${GOTIFY_HOST}"
       client_token: "${GOTIFY_TOKEN}"
       ssl: false
-      app_tokens: [all]    # или конкретные app-токены Gotify
+      app_tokens: [all]           # Gotify 2.x
+      # app_names: [NAS, Proxmox] # Gotify 3.0+
 receivers:
   - id: telegram-alerts
     type: apprise
@@ -76,6 +77,21 @@ routes:
 ```
 
 Корзины приоритета: **info** 0–3, **warn** 4–7, **crit** 8–10. Целое в `priorities` означает ровно это значение.
+
+### Фильтр приложений Gotify
+
+`client_token` — это **клиентский** токен (websocket `/stream` и `GET /application`). Входящие приложения фильтруются двумя отдельными списками:
+
+| Опция | Gotify | С чем сравнивается |
+|---|---|---|
+| `app_tokens` | **2.x** | поле `token` из `GET /application`. `all` — все приложения. |
+| `app_names` | **3.0+** | **имя** приложения (без учёта регистра). |
+
+С **Gotify 3.0.0** API и UI больше не отдают уже существующие токены (только один раз — при создании или ротации). Если в `app_tokens` стоят конкретные токены, а в `GET /application` нет поля `token`, listener пишет в лог предупреждение: это почти наверняка Gotify 3.0+, `app_tokens` ничего не поймает — переходите на `app_names`.
+
+Если оба списка пустые, принимаются все приложения (как `app_tokens: [all]`). Если заданы оба, сообщение проходит при совпадении **токена или** имени. Имя в `app_tokens` (и токен в `app_names`) не взаимозаменяемы.
+
+Переходите на `app_names` только с образом **0.2.1+**. В **0.2.0** неизвестные ключи игнорируются, а `app_tokens` по умолчанию `[all]` — каждый listener будет принимать все приложения.
 
 Плейсхолдеры шаблонов: `$title` `$message` `$appid` `$priority` `$priorityStr`.
 

@@ -49,7 +49,8 @@ listeners:
       host: "${GOTIFY_HOST}"
       client_token: "${GOTIFY_TOKEN}"
       ssl: false
-      app_tokens: [all]    # or concrete Gotify app tokens
+      app_tokens: [all]           # Gotify 2.x
+      # app_names: [NAS, Proxmox] # Gotify 3.0+
 receivers:
   - id: telegram-alerts
     type: apprise
@@ -76,6 +77,21 @@ routes:
 ```
 
 Priority buckets: **info** 0–3, **warn** 4–7, **crit** 8–10. An integer in `priorities` means that exact value.
+
+### Gotify application filter
+
+`client_token` is a **client** token (websocket `/stream` and `GET /application`). Incoming apps are filtered with two separate lists:
+
+| Option | Gotify | Matches |
+|---|---|---|
+| `app_tokens` | **2.x** | `token` field from `GET /application`. `all` accepts every app. |
+| `app_names` | **3.0+** | Application **name** (case-insensitive). |
+
+From **Gotify 3.0.0** the API and UI no longer return existing tokens (only once, on create or rotate). If `app_tokens` is set to concrete tokens and `GET /application` has no `token` field, the listener logs a warning that this is almost certainly Gotify 3.0+ and `app_tokens` cannot match — switch to `app_names`.
+
+If both lists are empty, every app is accepted (same as `app_tokens: [all]`). If both are set, a message matches when **either** the token or the name matches. Names in `app_tokens` (or tokens in `app_names`) are not interchangeable.
+
+Use **0.2.1+** before switching YAML to `app_names`. Image **0.2.0** ignores unknown keys and still defaults `app_tokens` to `[all]`, so every listener would ingest every app.
 
 Template placeholders: `$title` `$message` `$appid` `$priority` `$priorityStr`.
 

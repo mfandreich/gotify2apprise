@@ -35,7 +35,7 @@ Python package `gotify2apprise/`. Keep new listener/receiver types behind the ex
 
 - Match existing module style: typed functions/classes, `logging`, no extra frameworks.
 - YAML is source of truth; SQLite is history/auth/queue, not routing config.
-- Gotify token in listener options is a **client** token. App tokens live in `app_tokens`.
+- Gotify token in listener options is a **client** token. Filter apps with `app_tokens` (Gotify 2.x: match `token` from `GET /application`; `all` = every app) or `app_names` (Gotify 3.0+: case-insensitive names). Empty both = accept all. Names and tokens are not interchangeable. If `app_tokens` is set and the API has no `token` field, log that this is Gotify 3.0+ and switch to `app_names`. Do not deploy `app_names`-only YAML to pre-0.2.1 images (they ignore the key and defaulted `app_tokens` to `[all]`).
 - HTTP/WS vs HTTPS/WSS is per-listener `ssl` (default false). Do not silently switch.
 - Route `from`/`to`: **OR** of ids and tags (union). Tag lists are also OR (any overlap).
 - Integer in `priorities` = that exact priority (v1 bug must not return).

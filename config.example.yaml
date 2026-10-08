@@ -20,7 +20,8 @@ listeners:
       host: "${GOTIFY_HOST}"
       client_token: "${GOTIFY_TOKEN}"
       ssl: false
-      app_tokens: [all]
+      app_tokens: [all]           # Gotify 2.x: match token from GET /application (`all` = every app)
+      # app_names: [NAS, Proxmox] # Gotify 3.0+: API no longer returns tokens; match application names
 
   # Internal SMTP sink — do not expose this port to the internet.
   # Multiple smtp listeners may share host:port; they split on RCPT mailbox

@@ -83,7 +83,8 @@ class GotifyOptions(BaseModel):
     host: str
     client_token: str
     ssl: bool = False
-    app_tokens: list[str] = Field(default_factory=lambda: ["all"])
+    app_tokens: list[str] = Field(default_factory=list)
+    app_names: list[str] = Field(default_factory=list)
 
     @field_validator("host")
     @classmethod

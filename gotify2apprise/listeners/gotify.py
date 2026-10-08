@@ -17,6 +17,38 @@ log = logging.getLogger(__name__)
 APP_CACHE_TTL_SEC = 60.0
 
 
+def _stripped(values: list[str]) -> list[str]:
+    return [item.strip() for item in values if str(item).strip()]
+
+
+def accept_gotify_app(
+    app: dict[str, Any],
+    *,
+    app_tokens: list[str],
+    app_names: list[str],
+) -> bool:
+    tokens = _stripped(app_tokens)
+    names = _stripped(app_names)
+    if not tokens and not names:
+        return True
+    if "all" in tokens:
+        return True
+    token = str(app.get("token") or "")
+    if token and token in set(tokens):
+        return True
+    name = str(app.get("name") or "").strip()
+    if name and name.casefold() in {item.casefold() for item in names}:
+        return True
+    return False
+
+
+def app_tokens_unusable_without_api_tokens(apps: dict[int, dict[str, Any]], app_tokens: list[str]) -> bool:
+    tokens = [item for item in _stripped(app_tokens) if item != "all"]
+    if not tokens:
+        return False
+    return not any(app.get("token") for app in apps.values())
+
+
 class GotifyListener:
     def __init__(self, config: ListenerConfig, on_message: OnMessage) -> None:
         self.config = config
@@ -26,6 +58,7 @@ class GotifyListener:
         self._task: asyncio.Task[None] | None = None
         self._apps: dict[int, dict[str, Any]] = {}
         self._apps_fetched_at = 0.0
+        self._warned_tokenless = False
 
     async def start(self) -> None:
         self._stop.clear()
@@ -64,15 +97,38 @@ class GotifyListener:
             try:
                 self._apps = await self._fetch_apps()
                 self._apps_fetched_at = now
+                self._warn_if_tokenless_api()
             except Exception:
                 log.exception("listener %s: failed to fetch Gotify applications", self.config.id)
         return self._apps
 
     def _accept_app(self, app: dict[str, Any]) -> bool:
-        tokens = self._opts.app_tokens
-        if "all" in tokens:
-            return True
-        return app.get("token") in tokens
+        return accept_gotify_app(
+            app,
+            app_tokens=self._opts.app_tokens,
+            app_names=self._opts.app_names,
+        )
+
+    def _warn_if_tokenless_api(self) -> None:
+        if self._warned_tokenless:
+            return
+        if not app_tokens_unusable_without_api_tokens(self._apps, self._opts.app_tokens):
+            return
+        self._warned_tokenless = True
+        log.warning(
+            "listener %s: GET /application did not return tokens; app_tokens cannot match. "
+            "This usually means Gotify 3.0+ (tokens are shown only on create/rotate). "
+            "Use app_names instead.",
+            self.config.id,
+        )
+
+    def _log_accept_set(self) -> None:
+        accepted = [
+            f"{app.get('name')}#{app.get('id')}"
+            for app in self._apps.values()
+            if self._accept_app(app)
+        ]
+        log.info("listener %s: accepting %s", self.config.id, ", ".join(accepted) or "nothing")
 
     async def _handle_payload(self, payload: str) -> None:
         data = json.loads(payload)
@@ -86,6 +142,12 @@ class GotifyListener:
             log.warning("listener %s: unknown appid %s, skip", self.config.id, app_id)
             return
         if not self._accept_app(app):
+            log.info(
+                "listener %s: skip appid=%s name=%s (not in app_tokens/app_names)",
+                self.config.id,
+                app_id,
+                app.get("name"),
+            )
             return
         message = NormalizedMessage(
             source_listener_id=self.config.id,
@@ -102,6 +164,7 @@ class GotifyListener:
         while not self._stop.is_set():
             try:
                 await self._apps_cached(force=True)
+                self._log_accept_set()
                 _, ws_scheme = self._scheme()
                 url = f"{ws_scheme}://{self._opts.host}/stream"
                 headers = {"X-Gotify-Key": self._opts.client_token}
