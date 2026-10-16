@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from email import message_from_bytes
+from email.header import decode_header, make_header
 from email.message import Message
 
 from aiosmtpd.controller import Controller
@@ -31,6 +32,19 @@ MAILBOX_PRIORITY_SUFFIXES: dict[str, int] = {
 }
 
 _binds: dict[tuple[str, int], "_SmtpBind"] = {}
+
+
+def _decode_header_value(value: str | None) -> str:
+    """Decode RFC 2047 encoded-words in header fields (Subject, etc.)."""
+    if value is None:
+        return ""
+    text = str(value).strip()
+    if not text:
+        return ""
+    try:
+        return str(make_header(decode_header(text)))
+    except (LookupError, UnicodeError, ValueError):
+        return text
 
 
 def _body_from_email(msg: Message) -> str:
@@ -236,7 +250,7 @@ class SmtpListener:
         priority_override: int | None = None,
     ) -> None:
         msg = message_from_bytes(content)
-        title = str(msg.get("Subject") or "(no subject)")
+        title = _decode_header_value(msg.get("Subject")) or "(no subject)"
         body = _body_from_email(msg)
         priority = (
             priority_override

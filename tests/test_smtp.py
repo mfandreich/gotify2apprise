@@ -6,6 +6,7 @@ from pydantic import ValidationError
 from gotify2apprise.listeners.smtp import (
     SmtpListener,
     _body_from_email,
+    _decode_header_value,
     _priority_from_email,
     match_mailbox,
     route_smtp_recipients,
@@ -28,6 +29,20 @@ def test_plain_body() -> None:
     assert "hello world" in _body_from_email(msg)
 
 
+def test_decode_rfc2047_subject() -> None:
+    encoded = (
+        "=?utf-8?b?0KLQvtGA0YDQtdC90YIgwqtTa2V0Y2hVcC5Qcm8uMjAyNi4yNi4xLjI1"
+        "NsK7INC30LDQstC10YDRiNC40Lsg0LfQsNCz0YDRg9C30LrRgw==?="
+    )
+    assert _decode_header_value(encoded) == (
+        "Торрент «SketchUp.Pro.2026.26.1.256» завершил загрузку"
+    )
+    assert _decode_header_value("Disk full") == "Disk full"
+    assert _decode_header_value("=?utf-8?q?Hello_=C2=ABWorld=C2=BB?=") == "Hello «World»"
+    assert _decode_header_value(None) == ""
+    assert _decode_header_value("  ") == ""
+
+
 @pytest.mark.asyncio
 async def test_ingest_subject() -> None:
     captured: list[NormalizedMessage] = []
@@ -48,6 +63,33 @@ async def test_ingest_subject() -> None:
     assert captured[0].title == "Disk full"
     assert "disk is full" in captured[0].body.lower()
     assert captured[0].extra["appid"] == "bridge@local"
+
+
+@pytest.mark.asyncio
+async def test_ingest_rfc2047_subject() -> None:
+    captured: list[NormalizedMessage] = []
+
+    async def on_message(message: NormalizedMessage) -> None:
+        captured.append(message)
+
+    listener = SmtpListener(
+        ListenerConfig(
+            id="smtp-local",
+            type="smtp",
+            options={"host": "127.0.0.1", "port": 2525},
+        ),
+        on_message,
+    )
+    subject = (
+        "=?utf-8?b?0KLQvtGA0YDQtdC90YIgwqtTa2V0Y2hVcC5Qcm8uMjAyNi4yNi4xLjI1"
+        "NsK7INC30LDQstC10YDRiNC40Lsg0LfQsNCz0YDRg9C30LrRgw==?="
+    )
+    raw = f"From: a@b.c\r\nSubject: {subject}\r\n\r\nbody\r\n".encode()
+    await listener.ingest(raw, "a@b.c", ["bridge@local"])
+    assert captured[0].title == (
+        "Торрент «SketchUp.Pro.2026.26.1.256» завершил загрузку"
+    )
+    assert captured[0].raw["subject"] == captured[0].title
 
 
 def test_match_mailbox_and_priority_suffix() -> None:
